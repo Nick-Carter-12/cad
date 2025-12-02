@@ -15,6 +15,9 @@ function createCall(req, res) {
     createdBy: req.user.username,
     status: 'Pending',
     assignedUnit: null,
+    assignedUnitId: null,
+    assignedUnitNumber: null,
+    assignedUnitOwner: null,
   };
   calls.push(call);
   res.status(201).json(call);

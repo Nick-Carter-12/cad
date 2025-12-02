@@ -1,5 +1,5 @@
-// Admins can manage users, call types, and configuration.
-const { users, callTypes, systemConfig } = require('../models/dataStore');
+// Admins can manage users, call types, configuration, and inspect units.
+const { users, callTypes, systemConfig, units } = require('../models/dataStore');
 
 function listUsers(_req, res) {
   res.json(users.map(({ password, ...rest }) => rest));
@@ -39,4 +39,16 @@ function updateConfig(req, res) {
   res.json(systemConfig);
 }
 
-module.exports = { listUsers, createUser, listCallTypes, addCallType, getConfig, updateConfig };
+function listUnits(_req, res) {
+  res.json(units);
+}
+
+module.exports = {
+  listUsers,
+  createUser,
+  listCallTypes,
+  addCallType,
+  getConfig,
+  updateConfig,
+  listUnits,
+};

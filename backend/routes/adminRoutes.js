@@ -6,6 +6,7 @@ const {
   addCallType,
   getConfig,
   updateConfig,
+  listUnits,
 } = require('../controllers/adminController');
 const { requireAuth } = require('../middleware/auth');
 
@@ -22,5 +23,7 @@ router.post('/call-types', requireAuth('admin'), addCallType);
 // System configuration
 router.get('/config', requireAuth('admin'), getConfig);
 router.patch('/config', requireAuth('admin'), updateConfig);
+
+router.get('/units', requireAuth('admin'), listUnits);
 
 module.exports = router;

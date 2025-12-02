@@ -10,7 +10,9 @@ function requireAuth(requiredRole) {
     }
 
     const session = activeTokens.get(token);
-    if (requiredRole && session.role !== requiredRole) {
+    const allowed =
+      !requiredRole || session.role === requiredRole || session.role === 'admin';
+    if (!allowed) {
       return res.status(403).json({ error: 'Forbidden for this portal' });
     }
 

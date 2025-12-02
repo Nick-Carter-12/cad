@@ -1,15 +1,17 @@
 // Officers can review their assigned calls and update status.
-const { calls } = require('../models/dataStore');
+const { calls, units, createUnit } = require('../models/dataStore');
 
 function myCalls(req, res) {
-  const assigned = calls.filter((c) => c.assignedUnit === req.user.username);
+  const assigned = calls.filter((c) => c.assignedUnitOwner === req.user.username);
   res.json(assigned);
 }
 
 function updateOfficerStatus(req, res) {
   const { id } = req.params;
   const { status } = req.body;
-  const call = calls.find((c) => c.id === id && c.assignedUnit === req.user.username);
+  const call = calls.find(
+    (c) => c.id === id && c.assignedUnitOwner === req.user.username,
+  );
   if (!call) {
     return res.status(404).json({ error: 'Call not found for this officer' });
   }
@@ -23,4 +25,14 @@ function updateOfficerStatus(req, res) {
   res.json(call);
 }
 
-module.exports = { myCalls, updateOfficerStatus };
+function myUnits(req, res) {
+  const mine = units.filter((u) => u.owner === req.user.username);
+  res.json(mine);
+}
+
+function createOfficerUnit(req, res) {
+  const unit = createUnit(req.user.username, req.user.username);
+  res.status(201).json(unit);
+}
+
+module.exports = { myCalls, updateOfficerStatus, myUnits, createOfficerUnit };

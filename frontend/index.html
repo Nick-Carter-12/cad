@@ -110,6 +110,30 @@
 
     .hidden { display: none !important; }
     .roles { display: flex; gap: 8px; flex-wrap: wrap; }
+
+    nav {
+      padding: 0 24px 12px;
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    nav button {
+      background: rgba(226, 232, 240, 0.1);
+      color: var(--text);
+      border: 1px solid rgba(226, 232, 240, 0.12);
+    }
+
+    .unit-chip {
+      display: inline-flex;
+      gap: 6px;
+      align-items: center;
+      padding: 6px 10px;
+      border-radius: 10px;
+      background: rgba(34, 211, 238, 0.08);
+      border: 1px solid rgba(226, 232, 240, 0.08);
+      font-size: 0.9rem;
+    }
   </style>
 </head>
 <body>
@@ -120,6 +144,13 @@
     </div>
     <div class="pill" id="sessionStatus">Not signed in</div>
   </header>
+
+  <nav id="adminNav" class="hidden">
+    <button data-view="civ">Civilian</button>
+    <button data-view="dispatch">Dispatch</button>
+    <button data-view="police">Police</button>
+    <button data-view="admin">Admin</button>
+  </nav>
 
   <div class="layout">
     <section class="card" id="loginCard">
@@ -158,7 +189,14 @@
     <section class="card hidden" data-role="dispatch" id="dispatchCard">
       <div class="flex-between">
         <h2>Dispatch: Manage Calls</h2>
-        <button class="secondary" id="refreshDispatch">Refresh</button>
+        <div class="roles">
+          <button class="secondary" id="addDispatchUnit">Add Unit</button>
+          <button class="secondary" id="refreshDispatch">Refresh</button>
+        </div>
+      </div>
+      <div class="stack" style="margin-bottom:10px;">
+        <strong>Available Units</strong>
+        <div class="grid-list" id="dispatchUnits"></div>
       </div>
       <div class="grid-list" id="dispatchList"></div>
     </section>
@@ -166,7 +204,14 @@
     <section class="card hidden" data-role="police" id="policeCard">
       <div class="flex-between">
         <h2>Police: My Calls</h2>
-        <button class="secondary" id="refreshPolice">Refresh</button>
+        <div class="roles">
+          <button class="secondary" id="addOfficerUnit">Add Unit</button>
+          <button class="secondary" id="refreshPolice">Refresh</button>
+        </div>
+      </div>
+      <div class="stack" style="margin-bottom:10px;">
+        <strong>My Units</strong>
+        <div class="grid-list" id="policeUnits"></div>
       </div>
       <div class="grid-list" id="policeList"></div>
     </section>
@@ -215,8 +260,12 @@
     const loginCard = document.getElementById('loginCard');
     const sessionCard = document.getElementById('sessionCard');
     const sessionInfo = document.getElementById('sessionInfo');
+    const adminNav = document.getElementById('adminNav');
     let token = localStorage.getItem('token');
     let role = localStorage.getItem('role');
+    let adminView = localStorage.getItem('adminView') || 'admin';
+    let dispatchUnitsCache = [];
+    let officerUnits = [];
 
     function setPill(text, tone = 'muted') {
       statusPill.textContent = text;
@@ -241,12 +290,23 @@
       });
     }
 
+    function applyRoleVisibility(activeRole) {
+      document.querySelectorAll('[data-role]').forEach((section) => {
+        section.classList.toggle('hidden', section.dataset.role !== activeRole);
+      });
+    }
+
     function setRoleUI(nextRole, username) {
       role = nextRole;
+      const isAdmin = role === 'admin';
+      const activeView = isAdmin ? adminView : role;
       if (role) {
-        setPill(`Signed in as ${username} (${role})`, 'ok');
+        setPill(`Signed in as ${username || 'Admin'} (${role})`, 'ok');
         sessionCard.classList.remove('hidden');
-        sessionInfo.textContent = `You are logged in as ${username}. Only the tools for the ${role.toUpperCase()} role are visible.`;
+        sessionInfo.textContent =
+          role === 'admin'
+            ? 'Admin can hop between portals using the navigation below.'
+            : `You are logged in as ${username}. Only the tools for the ${role.toUpperCase()} role are visible.`;
         loginCard.classList.add('hidden');
       } else {
         setPill('Not signed in');
@@ -254,9 +314,8 @@
         loginCard.classList.remove('hidden');
       }
 
-      document.querySelectorAll('[data-role]').forEach((section) => {
-        section.classList.toggle('hidden', section.dataset.role !== role);
-      });
+      adminNav.classList.toggle('hidden', !isAdmin);
+      applyRoleVisibility(activeView);
     }
 
     async function bootstrapSession() {
@@ -284,9 +343,50 @@
 
     function clearLists() {
       document.getElementById('dispatchList').innerHTML = '';
+      document.getElementById('dispatchUnits').innerHTML = '';
       document.getElementById('policeList').innerHTML = '';
+      document.getElementById('policeUnits').innerHTML = '';
       document.getElementById('adminData').innerHTML = '';
     }
+
+    function renderDispatchUnits(units = dispatchUnitsCache) {
+      const list = document.getElementById('dispatchUnits');
+      list.innerHTML = '';
+      if (!units.length) {
+        list.innerHTML = '<div class="muted">No units yet.</div>';
+        return;
+      }
+      units.forEach((unit) => {
+        const div = document.createElement('div');
+        div.className = 'list-item flex-between';
+        div.innerHTML = `<span class="unit-chip">${unit.callSign} · #${unit.number}</span><span class="muted">${unit.owner || 'Unassigned'}</span>`;
+        list.appendChild(div);
+      });
+    }
+
+    function renderOfficerUnits(listing = officerUnits) {
+      const list = document.getElementById('policeUnits');
+      list.innerHTML = '';
+      if (!listing.length) {
+        list.innerHTML = '<div class="muted">Add a unit to receive call assignments.</div>';
+        return;
+      }
+      listing.forEach((unit) => {
+        const div = document.createElement('div');
+        div.className = 'list-item flex-between';
+        div.innerHTML = `<span class="unit-chip">${unit.callSign} · #${unit.number}</span><span class="muted">${unit.status}</span>`;
+        list.appendChild(div);
+      });
+    }
+
+    adminNav.querySelectorAll('button').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        adminView = btn.dataset.view;
+        localStorage.setItem('adminView', adminView);
+        applyRoleVisibility(adminView);
+        refreshForRole();
+      });
+    });
 
     document.getElementById('loginForm').addEventListener('submit', async (e) => {
       e.preventDefault();
@@ -330,7 +430,13 @@
 
     async function loadDispatchCalls() {
       try {
-        const calls = await fetchWithAuth('/dispatch/calls');
+        const [calls, units] = await Promise.all([
+          fetchWithAuth('/dispatch/calls'),
+          fetchWithAuth('/dispatch/units'),
+        ]);
+        dispatchUnitsCache = units;
+        renderDispatchUnits(units);
+
         const list = document.getElementById('dispatchList');
         list.innerHTML = '';
         if (!calls.length) {
@@ -345,19 +451,35 @@
             <div class="muted">${call.description}</div>
             <div class="muted">Location: ${call.location}</div>
             <div class="muted">Created by: ${call.createdBy}</div>
-            <div class="muted">Assigned Unit: ${call.assignedUnit || 'Unassigned'}</div>
+            <div class="muted">Assigned Unit: ${call.assignedUnit ? `${call.assignedUnit} (#${call.assignedUnitNumber || 'N/A'})` : 'Unassigned'}</div>
           `;
 
           const assignForm = document.createElement('form');
           assignForm.className = 'flex-between';
-          assignForm.innerHTML = `
-            <input placeholder="Assign unit" value="${call.assignedUnit || ''}" style="margin-right:8px;" />
-            <button type="submit">Assign</button>
-          `;
+          const select = document.createElement('select');
+          select.style.marginRight = '8px';
+          select.innerHTML = `<option value="">Select unit</option>${units
+            .map(
+              (u) =>
+                `<option value="${u.id}" ${call.assignedUnitId === u.id ? 'selected' : ''}>${u.callSign} (#${u.number}) ${u.owner ? `- ${u.owner}` : ''}</option>`,
+            )
+            .join('')}`;
+          assignForm.appendChild(select);
+          const assignBtn = document.createElement('button');
+          assignBtn.type = 'submit';
+          assignBtn.textContent = 'Assign';
+          assignForm.appendChild(assignBtn);
           assignForm.addEventListener('submit', async (e) => {
             e.preventDefault();
-            const unit = assignForm.querySelector('input').value.trim();
-            await fetchWithAuth(`/dispatch/calls/${call.id}/assign`, { method: 'PATCH', body: JSON.stringify({ unit }) });
+            const unitId = select.value;
+            if (!unitId) {
+              alert('Pick a unit to assign.');
+              return;
+            }
+            await fetchWithAuth(`/dispatch/calls/${call.id}/assign`, {
+              method: 'PATCH',
+              body: JSON.stringify({ unitId }),
+            });
             loadDispatchCalls();
           });
 
@@ -374,13 +496,25 @@
           statusForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             const status = statusForm.querySelector('select').value;
-            await fetchWithAuth(`/dispatch/calls/${call.id}/status`, { method: 'PATCH', body: JSON.stringify({ status }) });
+            await fetchWithAuth(`/dispatch/calls/${call.id}/status`, {
+              method: 'PATCH',
+              body: JSON.stringify({ status }),
+            });
             loadDispatchCalls();
           });
 
           item.append(assignForm, statusForm);
           list.appendChild(item);
         });
+      } catch (err) {
+        alert(err.message);
+      }
+    }
+
+    async function loadOfficerUnits() {
+      try {
+        officerUnits = await fetchWithAuth('/police/units');
+        renderOfficerUnits(officerUnits);
       } catch (err) {
         alert(err.message);
       }
@@ -403,6 +537,7 @@
             <div class="flex-between"><strong>${call.type}</strong><span class="pill">${call.status}</span></div>
             <div class="muted">${call.description}</div>
             <div class="muted">Location: ${call.location}</div>
+            <div class="muted">Assigned Unit: ${call.assignedUnit || 'Unassigned'}</div>
           `;
           const form = document.createElement('form');
           form.className = 'flex-between';
@@ -428,16 +563,21 @@
 
     async function loadAdminData() {
       try {
-        const [users, callTypes, config] = await Promise.all([
+        const [users, callTypes, config, units] = await Promise.all([
           fetchWithAuth('/admin/users'),
           fetchWithAuth('/admin/call-types'),
           fetchWithAuth('/admin/config'),
+          fetchWithAuth('/admin/units'),
         ]);
         const container = document.getElementById('adminData');
+        const unitText = units.length
+          ? units.map((u) => `${u.callSign} (#${u.number})${u.owner ? ` - ${u.owner}` : ''}`).join(', ')
+          : 'No units created yet';
         container.innerHTML = `
           <div><strong>Users</strong><div class="muted">${users.map((u) => `${u.username} (${u.role})`).join(', ')}</div></div>
           <div><strong>Call Types</strong><div class="muted">${callTypes.join(', ')}</div></div>
           <div><strong>Config</strong><div class="muted">Agency: ${config.agencyName} • Self-Assign: ${config.allowSelfAssign}</div></div>
+          <div><strong>Units</strong><div class="muted">${unitText}</div></div>
         `;
         document.getElementById('agencyName').value = config.agencyName || '';
         document.getElementById('allowSelfAssign').checked = !!config.allowSelfAssign;
@@ -447,8 +587,32 @@
     }
 
     document.getElementById('refreshDispatch').addEventListener('click', loadDispatchCalls);
-    document.getElementById('refreshPolice').addEventListener('click', loadPoliceCalls);
+    document.getElementById('refreshPolice').addEventListener('click', () => {
+      loadOfficerUnits();
+      loadPoliceCalls();
+    });
     document.getElementById('refreshAdmin').addEventListener('click', loadAdminData);
+
+    document.getElementById('addDispatchUnit').addEventListener('click', async () => {
+      try {
+        const owner = prompt('Assign this unit to an officer username (optional):');
+        const payload = owner ? { owner: owner.trim() } : {};
+        await fetchWithAuth('/dispatch/units', { method: 'POST', body: JSON.stringify(payload) });
+        loadDispatchCalls();
+      } catch (err) {
+        alert(err.message);
+      }
+    });
+
+    document.getElementById('addOfficerUnit').addEventListener('click', async () => {
+      try {
+        await fetchWithAuth('/police/units', { method: 'POST' });
+        await loadOfficerUnits();
+        loadPoliceCalls();
+      } catch (err) {
+        alert(err.message);
+      }
+    });
 
     document.getElementById('userForm').addEventListener('submit', async (e) => {
       e.preventDefault();
@@ -494,9 +658,13 @@
 
     function refreshForRole() {
       clearLists();
-      if (role === 'dispatch') loadDispatchCalls();
-      if (role === 'police') loadPoliceCalls();
-      if (role === 'admin') loadAdminData();
+      const target = role === 'admin' ? adminView : role;
+      if (target === 'dispatch') loadDispatchCalls();
+      if (target === 'police') {
+        loadOfficerUnits();
+        loadPoliceCalls();
+      }
+      if (target === 'admin') loadAdminData();
     }
 
     // Initialize UI
