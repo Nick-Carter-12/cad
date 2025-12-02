@@ -5,9 +5,9 @@ This project provides a minimal computer-aided dispatch (CAD) sample with four p
 ## Features
 - Basic username/password login for all portals with a unified dashboard that hides actions you cannot access.
 - Admin navigation to hop between portals without logging out again.
-- Civilian tools to create calls for service.
-- Dispatch tools to view calls, assign rostered units, and set call statuses.
-- Police tools for officers to view their assigned calls and update status (en-route, on-scene, clear) with self-serve unit creation.
+- Civilian tools to create calls for service, review their submissions, and add public or civ-only notes back to officers.
+- Dispatch tools to view calls, assign rostered units, set call statuses, and remove units while auto-unassigning calls.
+- Police tools for officers to view their assigned calls, add public or officer-only notes, and update status (en-route, on-scene, clear) with self-serve unit creation.
 - Admin tools to manage users, call types, configuration, and review all generated units.
 
 ## Getting started

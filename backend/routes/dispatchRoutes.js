@@ -3,6 +3,7 @@ const {
   listCalls,
   listUnits,
   addUnit,
+  removeUnit,
   assignUnit,
   updateStatus,
 } = require('../controllers/dispatchController');
@@ -16,6 +17,7 @@ router.get('/calls', requireAuth('dispatch'), listCalls);
 // Units
 router.get('/units', requireAuth('dispatch'), listUnits);
 router.post('/units', requireAuth('dispatch'), addUnit);
+router.delete('/units/:id', requireAuth('dispatch'), removeUnit);
 
 // PATCH /dispatch/calls/:id/assign
 router.patch('/calls/:id/assign', requireAuth('dispatch'), assignUnit);

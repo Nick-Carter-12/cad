@@ -2,6 +2,7 @@ const express = require('express');
 const {
   myCalls,
   updateOfficerStatus,
+  addNote,
   myUnits,
   createOfficerUnit,
 } = require('../controllers/policeController');
@@ -11,6 +12,7 @@ const router = express.Router();
 
 // GET /police/calls
 router.get('/calls', requireAuth('police'), myCalls);
+router.post('/calls/:id/notes', requireAuth('police'), addNote);
 
 // Units
 router.get('/units', requireAuth('police'), myUnits);

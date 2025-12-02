@@ -15,6 +15,27 @@ function addUnit(req, res) {
   res.status(201).json(unit);
 }
 
+function removeUnit(req, res) {
+  const { id } = req.params;
+  const idx = units.findIndex((u) => u.id === id);
+  if (idx === -1) {
+    return res.status(404).json({ error: 'Unit not found' });
+  }
+  const [removed] = units.splice(idx, 1);
+  calls.forEach((call) => {
+    if (call.assignedUnitId === id) {
+      call.assignedUnitId = null;
+      call.assignedUnitNumber = null;
+      call.assignedUnit = null;
+      call.assignedUnitOwner = null;
+      if (call.status === 'Dispatched') {
+        call.status = 'Pending';
+      }
+    }
+  });
+  res.json({ success: true, removed });
+}
+
 function assignUnit(req, res) {
   const { id } = req.params;
   const { unitId } = req.body;
@@ -48,4 +69,4 @@ function updateStatus(req, res) {
   res.json(call);
 }
 
-module.exports = { listCalls, listUnits, addUnit, assignUnit, updateStatus };
+module.exports = { listCalls, listUnits, addUnit, removeUnit, assignUnit, updateStatus };

@@ -134,6 +134,10 @@
       border: 1px solid rgba(226, 232, 240, 0.08);
       font-size: 0.9rem;
     }
+
+    .note { padding: 8px 10px; border-radius: 10px; background: rgba(15, 23, 42, 0.5); border: 1px solid rgba(226, 232, 240, 0.06); }
+    .note small { color: var(--muted); }
+    .note-pill { display: inline-flex; align-items: center; gap: 6px; padding: 4px 8px; border-radius: 8px; background: rgba(34, 211, 238, 0.1); border: 1px solid rgba(226, 232, 240, 0.08); font-size: 0.8rem; }
   </style>
 </head>
 <body>
@@ -184,6 +188,11 @@
         <button type="submit">Create Call for Service</button>
       </form>
       <div class="muted">Creates a call that dispatch can view and assign.</div>
+      <div class="flex-between" style="margin-top:14px;">
+        <h3 style="margin:0;">My Calls & Notes</h3>
+        <button class="secondary" id="refreshCiv">Refresh</button>
+      </div>
+      <div class="grid-list" id="civCalls"></div>
     </section>
 
     <section class="card hidden" data-role="dispatch" id="dispatchCard">
@@ -344,9 +353,37 @@
     function clearLists() {
       document.getElementById('dispatchList').innerHTML = '';
       document.getElementById('dispatchUnits').innerHTML = '';
+      document.getElementById('civCalls').innerHTML = '';
       document.getElementById('policeList').innerHTML = '';
       document.getElementById('policeUnits').innerHTML = '';
       document.getElementById('adminData').innerHTML = '';
+    }
+
+    function noteLabel(note) {
+      if (note.visibility === 'officer-private') return 'Officer Only';
+      if (note.visibility === 'civ-private') return 'Civilian Only';
+      return 'Public';
+    }
+
+    function renderNotes(container, notes = []) {
+      container.innerHTML = '';
+      if (!notes.length) {
+        container.innerHTML = '<div class="muted">No notes yet.</div>';
+        return;
+      }
+      notes.forEach((note) => {
+        const div = document.createElement('div');
+        div.className = 'note stack';
+        div.innerHTML = `
+          <div class="flex-between">
+            <span class="note-pill">${noteLabel(note)}</span>
+            <small>${note.createdAt ? new Date(note.createdAt).toLocaleString() : ''}</small>
+          </div>
+          <div>${note.text}</div>
+          <small>By ${note.author}${note.role ? ` (${note.role})` : ''}</small>
+        `;
+        container.appendChild(div);
+      });
     }
 
     function renderDispatchUnits(units = dispatchUnitsCache) {
@@ -359,7 +396,17 @@
       units.forEach((unit) => {
         const div = document.createElement('div');
         div.className = 'list-item flex-between';
-        div.innerHTML = `<span class="unit-chip">${unit.callSign} · #${unit.number}</span><span class="muted">${unit.owner || 'Unassigned'}</span>`;
+        const ownerText = unit.owner || 'Unassigned';
+        div.innerHTML = `<span class="unit-chip">${unit.callSign} · #${unit.number}</span><span class="muted">${ownerText}</span>`;
+        const removeBtn = document.createElement('button');
+        removeBtn.className = 'secondary danger';
+        removeBtn.textContent = 'Remove';
+        removeBtn.addEventListener('click', async () => {
+          if (!confirm('Remove this unit? It will unassign from any calls.')) return;
+          await fetchWithAuth(`/dispatch/units/${unit.id}`, { method: 'DELETE' });
+          loadDispatchCalls();
+        });
+        div.appendChild(removeBtn);
         list.appendChild(div);
       });
     }
@@ -423,10 +470,71 @@
         await fetchWithAuth('/civ/calls', { method: 'POST', body: JSON.stringify(payload) });
         alert('Call submitted to dispatch');
         e.target.reset();
+        loadCivCalls();
       } catch (err) {
         alert(err.message);
       }
     });
+
+    async function loadCivCalls() {
+      try {
+        const calls = await fetchWithAuth('/civ/calls');
+        const list = document.getElementById('civCalls');
+        list.innerHTML = '';
+        if (!calls.length) {
+          list.innerHTML = '<div class="muted">No calls yet.</div>';
+          return;
+        }
+        calls.forEach((call) => {
+          const item = document.createElement('div');
+          item.className = 'list-item stack';
+          item.innerHTML = `
+            <div class="flex-between"><strong>${call.type}</strong><span class="pill">${call.status}</span></div>
+            <div class="muted">${call.description}</div>
+            <div class="muted">Location: ${call.location}</div>
+            <div class="muted">Assigned Unit: ${call.assignedUnit || 'Unassigned'}</div>
+          `;
+
+          const noteContainer = document.createElement('div');
+          noteContainer.className = 'stack';
+          const noteHeader = document.createElement('div');
+          noteHeader.className = 'flex-between';
+          noteHeader.innerHTML = '<strong>Notes</strong>';
+          noteContainer.appendChild(noteHeader);
+          const noteList = document.createElement('div');
+          noteContainer.appendChild(noteList);
+          renderNotes(noteList, call.notes || []);
+
+          const form = document.createElement('form');
+          form.className = 'stack';
+          form.innerHTML = `
+            <textarea placeholder="Add a note for officers or yourself" required></textarea>
+            <select>
+              <option value="public">Public (officers & you)</option>
+              <option value="civ-private">Civilian Only</option>
+            </select>
+            <button type="submit">Add Note</button>
+          `;
+          form.addEventListener('submit', async (ev) => {
+            ev.preventDefault();
+            const text = form.querySelector('textarea').value.trim();
+            const visibility = form.querySelector('select').value;
+            if (!text) return;
+            await fetchWithAuth(`/civ/calls/${call.id}/notes`, {
+              method: 'POST',
+              body: JSON.stringify({ text, visibility }),
+            });
+            loadCivCalls();
+          });
+
+          noteContainer.appendChild(form);
+          item.appendChild(noteContainer);
+          list.appendChild(item);
+        });
+      } catch (err) {
+        alert(err.message);
+      }
+    }
 
     async function loadDispatchCalls() {
       try {
@@ -503,7 +611,15 @@
             loadDispatchCalls();
           });
 
-          item.append(assignForm, statusForm);
+          const noteBlock = document.createElement('div');
+          noteBlock.className = 'stack';
+          const noteHeader = document.createElement('strong');
+          noteHeader.textContent = 'Notes';
+          const noteList = document.createElement('div');
+          renderNotes(noteList, call.notes || []);
+          noteBlock.append(noteHeader, noteList);
+
+          item.append(assignForm, statusForm, noteBlock);
           list.appendChild(item);
         });
       } catch (err) {
@@ -554,6 +670,41 @@
             loadPoliceCalls();
           });
           item.appendChild(form);
+
+          const noteContainer = document.createElement('div');
+          noteContainer.className = 'stack';
+          const noteHeader = document.createElement('div');
+          noteHeader.className = 'flex-between';
+          noteHeader.innerHTML = '<strong>Notes</strong>';
+          noteContainer.appendChild(noteHeader);
+          const noteList = document.createElement('div');
+          noteContainer.appendChild(noteList);
+          renderNotes(noteList, call.notes || []);
+
+          const noteForm = document.createElement('form');
+          noteForm.className = 'stack';
+          noteForm.innerHTML = `
+            <textarea placeholder="Add a note (public or officer-only)" required></textarea>
+            <select>
+              <option value="public">Public (visible to caller & officers)</option>
+              <option value="officer-private">Officer Only</option>
+            </select>
+            <button type="submit">Add Note</button>
+          `;
+          noteForm.addEventListener('submit', async (ev) => {
+            ev.preventDefault();
+            const text = noteForm.querySelector('textarea').value.trim();
+            const visibility = noteForm.querySelector('select').value;
+            if (!text) return;
+            await fetchWithAuth(`/police/calls/${call.id}/notes`, {
+              method: 'POST',
+              body: JSON.stringify({ text, visibility }),
+            });
+            loadPoliceCalls();
+          });
+
+          noteContainer.appendChild(noteForm);
+          item.appendChild(noteContainer);
           list.appendChild(item);
         });
       } catch (err) {
@@ -587,6 +738,7 @@
     }
 
     document.getElementById('refreshDispatch').addEventListener('click', loadDispatchCalls);
+    document.getElementById('refreshCiv').addEventListener('click', loadCivCalls);
     document.getElementById('refreshPolice').addEventListener('click', () => {
       loadOfficerUnits();
       loadPoliceCalls();
@@ -660,6 +812,7 @@
       clearLists();
       const target = role === 'admin' ? adminView : role;
       if (target === 'dispatch') loadDispatchCalls();
+      if (target === 'civ') loadCivCalls();
       if (target === 'police') {
         loadOfficerUnits();
         loadPoliceCalls();
