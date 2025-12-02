@@ -1,0 +1,507 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Unified CAD Portal</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --card: #111827;
+      --accent: #22d3ee;
+      --accent-strong: #06b6d4;
+      --text: #e2e8f0;
+      --muted: #94a3b8;
+      --danger: #f87171;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      background: radial-gradient(circle at 20% 20%, rgba(34, 211, 238, 0.15), transparent 25%),
+                  radial-gradient(circle at 80% 0%, rgba(56, 189, 248, 0.2), transparent 30%),
+                  var(--bg);
+      color: var(--text);
+    }
+
+    header {
+      padding: 24px 24px 8px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    h1 { margin: 0; font-size: 1.7rem; letter-spacing: 0.02em; }
+
+    .muted { color: var(--muted); }
+
+    .layout {
+      padding: 8px 24px 32px;
+      display: grid;
+      gap: 16px;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      align-items: start;
+    }
+
+    .card {
+      background: linear-gradient(135deg, rgba(34, 211, 238, 0.05), rgba(14, 165, 233, 0.03));
+      border: 1px solid rgba(226, 232, 240, 0.08);
+      border-radius: 14px;
+      padding: 18px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.25);
+      backdrop-filter: blur(6px);
+    }
+
+    .card h2 { margin-top: 0; font-size: 1.15rem; }
+
+    form { display: grid; gap: 10px; }
+
+    input, select, textarea {
+      width: 100%;
+      padding: 10px 12px;
+      border-radius: 10px;
+      border: 1px solid rgba(226, 232, 240, 0.2);
+      background: rgba(15, 23, 42, 0.5);
+      color: var(--text);
+    }
+
+    textarea { resize: vertical; min-height: 70px; }
+
+    button {
+      padding: 10px 14px;
+      border: none;
+      border-radius: 10px;
+      background: linear-gradient(135deg, var(--accent), var(--accent-strong));
+      color: #0b132b;
+      font-weight: 700;
+      cursor: pointer;
+      transition: transform 120ms ease, box-shadow 120ms ease, filter 120ms ease;
+    }
+
+    button:hover { transform: translateY(-1px); box-shadow: 0 10px 25px rgba(34, 211, 238, 0.3); }
+    button.secondary { background: rgba(226, 232, 240, 0.08); color: var(--text); box-shadow: none; }
+    button.danger { background: var(--danger); color: #0b132b; }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 12px;
+      border-radius: 999px;
+      background: rgba(34, 211, 238, 0.08);
+      border: 1px solid rgba(226, 232, 240, 0.08);
+      font-size: 0.9rem;
+    }
+
+    .grid-list { display: grid; gap: 10px; }
+    .list-item {
+      padding: 10px 12px;
+      border-radius: 12px;
+      background: rgba(15, 23, 42, 0.5);
+      border: 1px solid rgba(226, 232, 240, 0.08);
+    }
+
+    .flex-between { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+    .stack { display: grid; gap: 6px; }
+
+    .hidden { display: none !important; }
+    .roles { display: flex; gap: 8px; flex-wrap: wrap; }
+  </style>
+</head>
+<body>
+  <header>
+    <div>
+      <h1>Unified CAD Portal</h1>
+      <div class="muted">Sign in once and only see the tools your role can use.</div>
+    </div>
+    <div class="pill" id="sessionStatus">Not signed in</div>
+  </header>
+
+  <div class="layout">
+    <section class="card" id="loginCard">
+      <h2>Sign In</h2>
+      <form id="loginForm">
+        <input id="username" placeholder="Username" required />
+        <input id="password" placeholder="Password" type="password" required />
+        <button type="submit">Login</button>
+      </form>
+      <div class="muted" style="margin-top: 8px; font-size: 0.9rem;">
+        Demo accounts: civ/civpass, dispatch/dispatchpass, police/policepass, admin/adminpass
+      </div>
+    </section>
+
+    <section class="card hidden" id="sessionCard">
+      <div class="flex-between">
+        <div>
+          <h2>Session</h2>
+          <div class="muted" id="sessionInfo"></div>
+        </div>
+        <button class="secondary" id="logoutBtn">Logout</button>
+      </div>
+    </section>
+
+    <section class="card hidden" data-role="civ" id="civCard">
+      <h2>Civilian: Submit Call</h2>
+      <form id="civForm">
+        <input id="civType" placeholder="Call Type (e.g., Suspicious Person)" required />
+        <textarea id="civDescription" placeholder="Description" required></textarea>
+        <input id="civLocation" placeholder="Location (optional)" />
+        <button type="submit">Create Call for Service</button>
+      </form>
+      <div class="muted">Creates a call that dispatch can view and assign.</div>
+    </section>
+
+    <section class="card hidden" data-role="dispatch" id="dispatchCard">
+      <div class="flex-between">
+        <h2>Dispatch: Manage Calls</h2>
+        <button class="secondary" id="refreshDispatch">Refresh</button>
+      </div>
+      <div class="grid-list" id="dispatchList"></div>
+    </section>
+
+    <section class="card hidden" data-role="police" id="policeCard">
+      <div class="flex-between">
+        <h2>Police: My Calls</h2>
+        <button class="secondary" id="refreshPolice">Refresh</button>
+      </div>
+      <div class="grid-list" id="policeList"></div>
+    </section>
+
+    <section class="card hidden" data-role="admin" id="adminCard">
+      <h2>Admin: Manage System</h2>
+      <div class="stack">
+        <form id="userForm" class="card" style="padding:12px; background: rgba(34,211,238,0.05);">
+          <div class="flex-between"><strong>Create User</strong></div>
+          <input id="newUsername" placeholder="Username" required />
+          <input id="newPassword" placeholder="Password" required />
+          <select id="newRole">
+            <option value="civ">Civilian</option>
+            <option value="dispatch">Dispatch</option>
+            <option value="police">Police</option>
+            <option value="admin">Admin</option>
+          </select>
+          <button type="submit">Add User</button>
+        </form>
+
+        <form id="callTypeForm" class="card" style="padding:12px; background: rgba(34,211,238,0.05);">
+          <div class="flex-between"><strong>Add Call Type</strong></div>
+          <input id="newCallType" placeholder="New call type" required />
+          <button type="submit">Add Type</button>
+        </form>
+
+        <form id="configForm" class="card" style="padding:12px; background: rgba(34,211,238,0.05);">
+          <div class="flex-between"><strong>Update Config</strong></div>
+          <input id="agencyName" placeholder="Agency name" />
+          <label style="display:flex; align-items:center; gap:8px;">
+            <input id="allowSelfAssign" type="checkbox" /> Allow self-assign
+          </label>
+          <button type="submit">Save Config</button>
+        </form>
+
+        <div class="card" style="padding:12px; background: rgba(34,211,238,0.05);">
+          <div class="flex-between"><strong>Current Data</strong> <button class="secondary" id="refreshAdmin">Refresh</button></div>
+          <div class="stack" id="adminData"></div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    const statusPill = document.getElementById('sessionStatus');
+    const loginCard = document.getElementById('loginCard');
+    const sessionCard = document.getElementById('sessionCard');
+    const sessionInfo = document.getElementById('sessionInfo');
+    let token = localStorage.getItem('token');
+    let role = localStorage.getItem('role');
+
+    function setPill(text, tone = 'muted') {
+      statusPill.textContent = text;
+      statusPill.style.borderColor = tone === 'ok' ? 'rgba(34, 211, 238, 0.7)' : 'rgba(226, 232, 240, 0.2)';
+      statusPill.style.background = tone === 'ok' ? 'rgba(34, 211, 238, 0.12)' : 'rgba(226, 232, 240, 0.08)';
+    }
+
+    function fetchWithAuth(url, options = {}) {
+      return fetch(url, {
+        ...options,
+        headers: {
+          'Content-Type': 'application/json',
+          ...(options.headers || {}),
+          ...(token ? { 'x-auth-token': token } : {}),
+        },
+      }).then(async (res) => {
+        if (!res.ok) {
+          const body = await res.json().catch(() => ({}));
+          throw new Error(body.error || 'Request failed');
+        }
+        return res.json();
+      });
+    }
+
+    function setRoleUI(nextRole, username) {
+      role = nextRole;
+      if (role) {
+        setPill(`Signed in as ${username} (${role})`, 'ok');
+        sessionCard.classList.remove('hidden');
+        sessionInfo.textContent = `You are logged in as ${username}. Only the tools for the ${role.toUpperCase()} role are visible.`;
+        loginCard.classList.add('hidden');
+      } else {
+        setPill('Not signed in');
+        sessionCard.classList.add('hidden');
+        loginCard.classList.remove('hidden');
+      }
+
+      document.querySelectorAll('[data-role]').forEach((section) => {
+        section.classList.toggle('hidden', section.dataset.role !== role);
+      });
+    }
+
+    async function bootstrapSession() {
+      if (!token) return;
+      try {
+        const me = await fetchWithAuth('/auth/me');
+        setRoleUI(me.role, me.username);
+        localStorage.setItem('token', token);
+        localStorage.setItem('role', me.role);
+        refreshForRole();
+      } catch (err) {
+        console.warn('Session expired', err);
+        clearSession();
+      }
+    }
+
+    function clearSession() {
+      token = null;
+      role = null;
+      localStorage.removeItem('token');
+      localStorage.removeItem('role');
+      setRoleUI(null);
+      clearLists();
+    }
+
+    function clearLists() {
+      document.getElementById('dispatchList').innerHTML = '';
+      document.getElementById('policeList').innerHTML = '';
+      document.getElementById('adminData').innerHTML = '';
+    }
+
+    document.getElementById('loginForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const username = document.getElementById('username').value.trim();
+      const password = document.getElementById('password').value.trim();
+      try {
+        const res = await fetchWithAuth('/auth/login', {
+          method: 'POST',
+          body: JSON.stringify({ username, password }),
+        });
+        token = res.token;
+        localStorage.setItem('token', token);
+        localStorage.setItem('role', res.role);
+        setRoleUI(res.role, username);
+        refreshForRole();
+      } catch (err) {
+        alert(err.message);
+      }
+    });
+
+    document.getElementById('logoutBtn').addEventListener('click', async () => {
+      await fetchWithAuth('/auth/logout', { method: 'POST' }).catch(() => {});
+      clearSession();
+    });
+
+    document.getElementById('civForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      try {
+        const payload = {
+          type: document.getElementById('civType').value.trim(),
+          description: document.getElementById('civDescription').value.trim(),
+          location: document.getElementById('civLocation').value.trim(),
+        };
+        await fetchWithAuth('/civ/calls', { method: 'POST', body: JSON.stringify(payload) });
+        alert('Call submitted to dispatch');
+        e.target.reset();
+      } catch (err) {
+        alert(err.message);
+      }
+    });
+
+    async function loadDispatchCalls() {
+      try {
+        const calls = await fetchWithAuth('/dispatch/calls');
+        const list = document.getElementById('dispatchList');
+        list.innerHTML = '';
+        if (!calls.length) {
+          list.innerHTML = '<div class="muted">No active calls.</div>';
+          return;
+        }
+        calls.forEach((call) => {
+          const item = document.createElement('div');
+          item.className = 'list-item stack';
+          item.innerHTML = `
+            <div class="flex-between"><strong>${call.type}</strong><span class="pill">${call.status}</span></div>
+            <div class="muted">${call.description}</div>
+            <div class="muted">Location: ${call.location}</div>
+            <div class="muted">Created by: ${call.createdBy}</div>
+            <div class="muted">Assigned Unit: ${call.assignedUnit || 'Unassigned'}</div>
+          `;
+
+          const assignForm = document.createElement('form');
+          assignForm.className = 'flex-between';
+          assignForm.innerHTML = `
+            <input placeholder="Assign unit" value="${call.assignedUnit || ''}" style="margin-right:8px;" />
+            <button type="submit">Assign</button>
+          `;
+          assignForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const unit = assignForm.querySelector('input').value.trim();
+            await fetchWithAuth(`/dispatch/calls/${call.id}/assign`, { method: 'PATCH', body: JSON.stringify({ unit }) });
+            loadDispatchCalls();
+          });
+
+          const statusForm = document.createElement('form');
+          statusForm.className = 'flex-between';
+          statusForm.innerHTML = `
+            <select style="margin-right:8px;">
+              <option ${call.status === 'Pending' ? 'selected' : ''}>Pending</option>
+              <option ${call.status === 'Dispatched' ? 'selected' : ''}>Dispatched</option>
+              <option ${call.status === 'Resolved' ? 'selected' : ''}>Resolved</option>
+            </select>
+            <button type="submit">Update Status</button>
+          `;
+          statusForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const status = statusForm.querySelector('select').value;
+            await fetchWithAuth(`/dispatch/calls/${call.id}/status`, { method: 'PATCH', body: JSON.stringify({ status }) });
+            loadDispatchCalls();
+          });
+
+          item.append(assignForm, statusForm);
+          list.appendChild(item);
+        });
+      } catch (err) {
+        alert(err.message);
+      }
+    }
+
+    async function loadPoliceCalls() {
+      try {
+        const calls = await fetchWithAuth('/police/calls');
+        const list = document.getElementById('policeList');
+        list.innerHTML = '';
+        if (!calls.length) {
+          list.innerHTML = '<div class="muted">No calls currently assigned to you.</div>';
+          return;
+        }
+        const allowed = ['En-Route', 'On-Scene', 'Clear'];
+        calls.forEach((call) => {
+          const item = document.createElement('div');
+          item.className = 'list-item stack';
+          item.innerHTML = `
+            <div class="flex-between"><strong>${call.type}</strong><span class="pill">${call.status}</span></div>
+            <div class="muted">${call.description}</div>
+            <div class="muted">Location: ${call.location}</div>
+          `;
+          const form = document.createElement('form');
+          form.className = 'flex-between';
+          form.innerHTML = `
+            <select style="margin-right:8px;">
+              ${allowed.map((s) => `<option ${call.status === s ? 'selected' : ''}>${s}</option>`).join('')}
+            </select>
+            <button type="submit">Update Status</button>
+          `;
+          form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const status = form.querySelector('select').value;
+            await fetchWithAuth(`/police/calls/${call.id}/status`, { method: 'PATCH', body: JSON.stringify({ status }) });
+            loadPoliceCalls();
+          });
+          item.appendChild(form);
+          list.appendChild(item);
+        });
+      } catch (err) {
+        alert(err.message);
+      }
+    }
+
+    async function loadAdminData() {
+      try {
+        const [users, callTypes, config] = await Promise.all([
+          fetchWithAuth('/admin/users'),
+          fetchWithAuth('/admin/call-types'),
+          fetchWithAuth('/admin/config'),
+        ]);
+        const container = document.getElementById('adminData');
+        container.innerHTML = `
+          <div><strong>Users</strong><div class="muted">${users.map((u) => `${u.username} (${u.role})`).join(', ')}</div></div>
+          <div><strong>Call Types</strong><div class="muted">${callTypes.join(', ')}</div></div>
+          <div><strong>Config</strong><div class="muted">Agency: ${config.agencyName} • Self-Assign: ${config.allowSelfAssign}</div></div>
+        `;
+        document.getElementById('agencyName').value = config.agencyName || '';
+        document.getElementById('allowSelfAssign').checked = !!config.allowSelfAssign;
+      } catch (err) {
+        alert(err.message);
+      }
+    }
+
+    document.getElementById('refreshDispatch').addEventListener('click', loadDispatchCalls);
+    document.getElementById('refreshPolice').addEventListener('click', loadPoliceCalls);
+    document.getElementById('refreshAdmin').addEventListener('click', loadAdminData);
+
+    document.getElementById('userForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const payload = {
+        username: document.getElementById('newUsername').value.trim(),
+        password: document.getElementById('newPassword').value.trim(),
+        role: document.getElementById('newRole').value,
+      };
+      try {
+        await fetchWithAuth('/admin/users', { method: 'POST', body: JSON.stringify(payload) });
+        e.target.reset();
+        loadAdminData();
+      } catch (err) {
+        alert(err.message);
+      }
+    });
+
+    document.getElementById('callTypeForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      try {
+        const type = document.getElementById('newCallType').value.trim();
+        await fetchWithAuth('/admin/call-types', { method: 'POST', body: JSON.stringify({ type }) });
+        e.target.reset();
+        loadAdminData();
+      } catch (err) {
+        alert(err.message);
+      }
+    });
+
+    document.getElementById('configForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      try {
+        const payload = {
+          agencyName: document.getElementById('agencyName').value.trim(),
+          allowSelfAssign: document.getElementById('allowSelfAssign').checked,
+        };
+        await fetchWithAuth('/admin/config', { method: 'PATCH', body: JSON.stringify(payload) });
+        loadAdminData();
+      } catch (err) {
+        alert(err.message);
+      }
+    });
+
+    function refreshForRole() {
+      clearLists();
+      if (role === 'dispatch') loadDispatchCalls();
+      if (role === 'police') loadPoliceCalls();
+      if (role === 'admin') loadAdminData();
+    }
+
+    // Initialize UI
+    setRoleUI(role, '');
+    bootstrapSession();
+  </script>
+</body>
+</html>
