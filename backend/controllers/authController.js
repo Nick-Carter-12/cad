@@ -13,6 +13,10 @@ function login(req, res) {
   res.json({ token, role: user.role });
 }
 
+function me(req, res) {
+  res.json(req.user);
+}
+
 function logout(req, res) {
   const token = req.header('x-auth-token');
   if (token) {
@@ -21,4 +25,4 @@ function logout(req, res) {
   res.json({ success: true });
 }
 
-module.exports = { login, logout };
+module.exports = { login, logout, me };

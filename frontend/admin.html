@@ -40,87 +40,62 @@
   </section>
   <script>
     let token = '';
-    const els = {
-      username: document.getElementById('username'),
-      password: document.getElementById('password'),
-      loginStatus: document.getElementById('login-status'),
-      userList: document.getElementById('user-list'),
-      newUser: document.getElementById('newUser'),
-      newPass: document.getElementById('newPass'),
-      newRole: document.getElementById('newRole'),
-      typeList: document.getElementById('type-list'),
-      newType: document.getElementById('newType'),
-      config: document.getElementById('config'),
-      agencyName: document.getElementById('agencyName'),
-      allowSelf: document.getElementById('allowSelf'),
-    };
     async function login() {
       const res = await fetch('/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username: els.username.value, password: els.password.value })
+        body: JSON.stringify({ username: username.value, password: password.value })
       });
       const data = await res.json();
-      if (res.ok) {
-        token = data.token;
-        els.loginStatus.textContent = 'Logged in as ' + data.role;
-      } else {
-        els.loginStatus.textContent = data.error || 'Login failed';
-      }
+      if (res.ok) { token = data.token; loginStatus.textContent = `Logged in as ${data.role}`; }
+      else { loginStatus.textContent = data.error; }
     }
     async function loadUsers() {
       const res = await fetch('/admin/users', { headers: { 'x-auth-token': token } });
       const data = await res.json();
-      els.userList.textContent = JSON.stringify(data, null, 2);
+      userList.textContent = JSON.stringify(data, null, 2);
     }
     async function createUser() {
       const res = await fetch('/admin/users', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-auth-token': token },
-        body: JSON.stringify({
-          username: els.newUser.value,
-          password: els.newPass.value,
-          role: els.newRole.value
-        })
+        body: JSON.stringify({ username: newUser.value, password: newPass.value, role: newRole.value })
       });
       const data = await res.json();
       alert(JSON.stringify(data));
-      await loadUsers();
+      loadUsers();
     }
     async function loadTypes() {
       const res = await fetch('/admin/call-types', { headers: { 'x-auth-token': token } });
       const data = await res.json();
-      els.typeList.textContent = JSON.stringify(data, null, 2);
+      typeList.textContent = JSON.stringify(data, null, 2);
     }
     async function addType() {
       const res = await fetch('/admin/call-types', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-auth-token': token },
-        body: JSON.stringify({ type: els.newType.value })
+        body: JSON.stringify({ type: newType.value })
       });
       const data = await res.json();
       alert(JSON.stringify(data));
-      await loadTypes();
+      loadTypes();
     }
     async function loadConfig() {
       const res = await fetch('/admin/config', { headers: { 'x-auth-token': token } });
       const data = await res.json();
-      els.config.textContent = JSON.stringify(data, null, 2);
-      els.agencyName.value = data.agencyName || '';
-      els.allowSelf.checked = !!data.allowSelfAssign;
+      config.textContent = JSON.stringify(data, null, 2);
+      agencyName.value = data.agencyName || '';
+      allowSelf.checked = data.allowSelfAssign;
     }
     async function saveConfig() {
       const res = await fetch('/admin/config', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json', 'x-auth-token': token },
-        body: JSON.stringify({
-          agencyName: els.agencyName.value,
-          allowSelfAssign: els.allowSelf.checked
-        })
+        body: JSON.stringify({ agencyName: agencyName.value, allowSelfAssign: allowSelf.checked })
       });
       const data = await res.json();
       alert(JSON.stringify(data));
-      await loadConfig();
+      loadConfig();
     }
   </script>
 </body>

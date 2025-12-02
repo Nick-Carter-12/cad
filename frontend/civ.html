@@ -23,41 +23,28 @@
   </section>
   <script>
     let token = '';
-    const els = {
-      username: document.getElementById('username'),
-      password: document.getElementById('password'),
-      loginStatus: document.getElementById('login-status'),
-      type: document.getElementById('type'),
-      description: document.getElementById('description'),
-      location: document.getElementById('location'),
-      callOutput: document.getElementById('call-output'),
-    };
     async function login() {
       const res = await fetch('/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username: els.username.value, password: els.password.value })
+        body: JSON.stringify({ username: username.value, password: password.value })
       });
       const data = await res.json();
       if (res.ok) {
         token = data.token;
-        els.loginStatus.textContent = 'Logged in as ' + data.role;
+        loginStatus.textContent = `Logged in as ${data.role}`;
       } else {
-        els.loginStatus.textContent = data.error || 'Login failed';
+        loginStatus.textContent = data.error;
       }
     }
     async function submitCall() {
       const res = await fetch('/civ/calls', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-auth-token': token },
-        body: JSON.stringify({
-          type: els.type.value,
-          description: els.description.value,
-          location: els.location.value
-        })
+        body: JSON.stringify({ type: type.value, description: description.value, location: location.value })
       });
       const data = await res.json();
-      els.callOutput.textContent = JSON.stringify(data, null, 2);
+      callOutput.textContent = JSON.stringify(data, null, 2);
     }
   </script>
 </body>
