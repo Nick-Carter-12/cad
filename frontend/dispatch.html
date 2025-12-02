@@ -32,39 +32,53 @@
   </section>
   <script>
     let token = '';
+    const els = {
+      username: document.getElementById('username'),
+      password: document.getElementById('password'),
+      loginStatus: document.getElementById('login-status'),
+      callList: document.getElementById('call-list'),
+      callId: document.getElementById('callId'),
+      unit: document.getElementById('unit'),
+      statusCallId: document.getElementById('statusCallId'),
+      status: document.getElementById('status'),
+    };
     async function login() {
       const res = await fetch('/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username: username.value, password: password.value })
+        body: JSON.stringify({ username: els.username.value, password: els.password.value })
       });
       const data = await res.json();
-      if (res.ok) { token = data.token; loginStatus.textContent = `Logged in as ${data.role}`; }
-      else { loginStatus.textContent = data.error; }
+      if (res.ok) {
+        token = data.token;
+        els.loginStatus.textContent = 'Logged in as ' + data.role;
+      } else {
+        els.loginStatus.textContent = data.error || 'Login failed';
+      }
     }
     async function loadCalls() {
       const res = await fetch('/dispatch/calls', { headers: { 'x-auth-token': token } });
       const data = await res.json();
-      callList.textContent = JSON.stringify(data, null, 2);
+      els.callList.textContent = JSON.stringify(data, null, 2);
     }
     async function assign() {
-      const res = await fetch(`/dispatch/calls/${callId.value}/assign`, {
+      const res = await fetch('/dispatch/calls/' + els.callId.value + '/assign', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json', 'x-auth-token': token },
-        body: JSON.stringify({ unit: unit.value })
+        body: JSON.stringify({ unit: els.unit.value })
       });
       const data = await res.json();
-      loadCalls();
+      await loadCalls();
       alert(JSON.stringify(data));
     }
     async function updateStatus() {
-      const res = await fetch(`/dispatch/calls/${statusCallId.value}/status`, {
+      const res = await fetch('/dispatch/calls/' + els.statusCallId.value + '/status', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json', 'x-auth-token': token },
-        body: JSON.stringify({ status: status.value })
+        body: JSON.stringify({ status: els.status.value })
       });
       const data = await res.json();
-      loadCalls();
+      await loadCalls();
       alert(JSON.stringify(data));
     }
   </script>
