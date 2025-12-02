@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Civilian Portal</title>
+</head>
+<body>
+  <h1>Civilian Portal</h1>
+  <section>
+    <h2>Login</h2>
+    <input id="username" placeholder="username" value="civ" />
+    <input id="password" placeholder="password" type="password" value="civpass" />
+    <button onclick="login()">Login</button>
+    <p id="login-status"></p>
+  </section>
+  <section>
+    <h2>Submit Call for Service</h2>
+    <input id="type" placeholder="Call Type" />
+    <input id="description" placeholder="Description" />
+    <input id="location" placeholder="Location" />
+    <button onclick="submitCall()">Submit</button>
+    <pre id="call-output"></pre>
+  </section>
+  <script>
+    let token = '';
+    async function login() {
+      const res = await fetch('/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: username.value, password: password.value })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        token = data.token;
+        loginStatus.textContent = `Logged in as ${data.role}`;
+      } else {
+        loginStatus.textContent = data.error;
+      }
+    }
+    async function submitCall() {
+      const res = await fetch('/civ/calls', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-auth-token': token },
+        body: JSON.stringify({ type: type.value, description: description.value, location: location.value })
+      });
+      const data = await res.json();
+      callOutput.textContent = JSON.stringify(data, null, 2);
+    }
+  </script>
+</body>
+</html>

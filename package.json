@@ -1,0 +1,13 @@
+{
+  "name": "simple-multi-portal-cad",
+  "version": "1.0.0",
+  "description": "Minimal multi-portal CAD demo with civilian, dispatch, police, and admin workflows.",
+  "main": "backend/app.js",
+  "scripts": {
+    "start": "node backend/app.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.19.2"
+  }
+}
