@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Dispatch Portal</title>
+</head>
+<body>
+  <h1>Dispatch Portal</h1>
+  <section>
+    <h2>Login</h2>
+    <input id="username" placeholder="username" value="dispatch" />
+    <input id="password" placeholder="password" type="password" value="dispatchpass" />
+    <button onclick="login()">Login</button>
+    <p id="login-status"></p>
+  </section>
+  <section>
+    <h2>Incoming Calls</h2>
+    <button onclick="loadCalls()">Refresh</button>
+    <pre id="call-list"></pre>
+  </section>
+  <section>
+    <h2>Assign Unit</h2>
+    <input id="callId" placeholder="Call ID" />
+    <input id="unit" placeholder="Unit/Officer" />
+    <button onclick="assign()">Assign</button>
+  </section>
+  <section>
+    <h2>Update Status</h2>
+    <input id="statusCallId" placeholder="Call ID" />
+    <input id="status" placeholder="New Status" />
+    <button onclick="updateStatus()">Update</button>
+  </section>
+  <script>
+    let token = '';
+    async function login() {
+      const res = await fetch('/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: username.value, password: password.value })
+      });
+      const data = await res.json();
+      if (res.ok) { token = data.token; loginStatus.textContent = `Logged in as ${data.role}`; }
+      else { loginStatus.textContent = data.error; }
+    }
+    async function loadCalls() {
+      const res = await fetch('/dispatch/calls', { headers: { 'x-auth-token': token } });
+      const data = await res.json();
+      callList.textContent = JSON.stringify(data, null, 2);
+    }
+    async function assign() {
+      const res = await fetch(`/dispatch/calls/${callId.value}/assign`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', 'x-auth-token': token },
+        body: JSON.stringify({ unit: unit.value })
+      });
+      const data = await res.json();
+      loadCalls();
+      alert(JSON.stringify(data));
+    }
+    async function updateStatus() {
+      const res = await fetch(`/dispatch/calls/${statusCallId.value}/status`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', 'x-auth-token': token },
+        body: JSON.stringify({ status: status.value })
+      });
+      const data = await res.json();
+      loadCalls();
+      alert(JSON.stringify(data));
+    }
+  </script>
+</body>
+</html>
